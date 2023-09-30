@@ -117,7 +117,7 @@ export default function Home() {
           }
 
           if (typeof cell.value === 'number' && [1, 3, 6].includes(headerIndex)) {
-            cell.numFmt = '$00.0';
+            cell.numFmt = '$0.0';
           }
 
           if (typeof cell.value === 'number' && headerIndex === 7) {
@@ -250,7 +250,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className='sticky top-[100vh]'>V0.2</div>
+      <div className='sticky top-[100vh]'>V0.3</div>
     </div>
   )
 }
