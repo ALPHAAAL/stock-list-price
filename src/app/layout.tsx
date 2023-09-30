@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import './globals.css';
 
 export const metadata = {
@@ -12,6 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <Head>
+        <meta http-equiv='cache-control' content='no-cache' />
+        <meta http-equiv='expires' content='0' />
+        <meta http-equiv='pragma' content='no-cache' />
+      </Head>
       <body>{children}</body>
     </html>
   )
