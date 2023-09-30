@@ -2,6 +2,7 @@
 
 import ExcelJs, { CellValue } from 'exceljs';
 import { useCallback, useState } from 'react';
+import { saveAs } from 'file-saver';
 
 // const BASEPATH = 'http://127.0.0.1:5001/finance-backend-6edde/asia-east2/yahooFinanceBackend';
 const BASEPATH = 'https://yahoofinancebackend-zi4qm5lvba-df.a.run.app';
@@ -9,12 +10,9 @@ const STOCK_TABLE_HEADERS = ['股票編號', '買入價', '股數', '每股賺 (
 const FX_TABLE_HEADERS = ['貨幣', '買入價', '數量', '現價總數', '總回報 ($)', '總回報 (%)'];
 
 function saveByteArray(name: string, byte: ArrayBuffer) {
-  var blob = new Blob([byte], { type: "application/vnd.ms-excel" });
-  var link = document.createElement('a');
-  link.href = window.URL.createObjectURL(blob);
-  var fileName = name;
-  link.download = fileName;
-  link.click();
+  const blob = new Blob([byte], { type: "application/vnd.ms-excel" });
+
+  saveAs(blob, name);
 };
 
 type Table = {
@@ -126,14 +124,14 @@ export default function Home() {
               }
 
               if (typeof cell.value === 'number' && headerIndex === 7) {
-                if (cell.value !== 0) {
+                if (cell.value < 0) {
                   cell.font = {
                     color: {
-                      argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00',
+                      argb: 'FFFF0000',
                     }
                   }
-                  cell.style.fill = undefined;
                 }
+                cell.style.fill = undefined;
               }
             });
 
@@ -178,15 +176,15 @@ export default function Home() {
               }
 
               if (typeof cell.value === 'number' && headerIndex === 5) {
-                if (cell.value !== 0) {
+                if (cell.value < 0) {
                   cell.font = {
                     color: {
-                      argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00',
+                      argb: 'FFFF0000',
                     }
                   }
-                  cell.style.fill = undefined;
                 }
               }
+              cell.style.fill = undefined;
             });
 
             excelRow.commit();
