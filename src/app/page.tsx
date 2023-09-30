@@ -133,7 +133,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div>
+    <div className="min-h-screen">
       <input type="file" onChange={handleFileChange}/>
 
       {table && (
@@ -156,6 +156,8 @@ export default function Home() {
           </tbody>
         </table>
       )}
+
+      <div className='sticky top-[100vh]'>V0.1</div>
     </div>
   )
 }
