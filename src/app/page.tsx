@@ -60,21 +60,22 @@ export default function Home() {
     await fetchFx();
 
     if (table) {
-      const promises = table.map((val) => fetchStock(val[0] as string));
+      const stock_symbols = table.map((row) => row[0]).join(',');
       const newTable = JSON.parse(JSON.stringify(table));
 
-      const results = await Promise.all(promises)
+      const results = await fetchStock(stock_symbols as string);
 
-      results.forEach((val, i) => {
-        const buyPrice = newTable[i][1];
-        const lot = newTable[i][2];
-        const eps = Number((val.price.regularMarketPrice - buyPrice).toPrecision(4));
+      newTable.forEach((val: CellValue[]) => {
+        const stockSymbol = val[0] as string;
+        const buyPrice = val[1] as number;
+        const lot = val[2] as number;
+        const eps = Number((results[stockSymbol].regularMarketPrice - buyPrice).toPrecision(4));
         const epsp = (eps / buyPrice * 100).toPrecision(4);
-        const interestRate = (val.price.regularMarketPrice * val.summaryDetail.dividendYield / buyPrice * 100).toPrecision(4);
+        const interestRate = (results[stockSymbol].regularMarketPrice * results[stockSymbol].dividendYield / buyPrice * 100).toPrecision(4);
         const totalReturn = eps * lot;
         const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
-        newTable[i]?.push(eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+        val.push(eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
       });
 
       const row = stockWorksheet.getRow(1);
@@ -123,11 +124,10 @@ export default function Home() {
 
       if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) {
         fileName = 'file';
-      }
-      else {
+      } else {
         fileName = 'file.xlsx';
       }
-      saveByteArray('file.xlsx', newWorkBook);
+      saveByteArray(fileName, newWorkBook);
       setTable(newTable);
     }
   }, []);
@@ -157,7 +157,7 @@ export default function Home() {
         </table>
       )}
 
-      <div className='sticky top-[100vh]'>V0.1</div>
+      <div className='sticky top-[100vh]'>V0.2</div>
     </div>
   )
 }
