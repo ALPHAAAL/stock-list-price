@@ -1,113 +1,135 @@
-import Image from 'next/image'
+'use client'
+
+import ExcelJs, { CellValue } from 'exceljs';
+import { useCallback, useState } from 'react';
+
+const TABLE_HEADERS = ['股票編號', '買入價', '股數', '每股賺 ($)', '每股賺 (%)', '息率', '總回報 ($)', '總回報 (%)'];
+
+function saveByteArray(name: string, byte: ArrayBuffer) {
+  var blob = new Blob([byte], {type: "application/vnd.ms-excel"});
+  var link = document.createElement('a');
+  link.href = window.URL.createObjectURL(blob);
+  var fileName = name;
+  link.download = fileName;
+  link.click();
+};
+
+type Table = Array<Array<CellValue>> | null;
 
 export default function Home() {
+  const [table, setTable] = useState<Table>(null);
+  const handleFileChange = useCallback(async (e: React.FormEvent<HTMLInputElement>) => {
+    const wb = new ExcelJs.Workbook();
+    const excelBuffer = await (e.target as HTMLInputElement).files![0].arrayBuffer();
+
+    await wb.xlsx.load(excelBuffer);
+
+    const worksheet = wb.getWorksheet('Sheet1');
+
+    let table: Table = [];
+
+    worksheet.getRows(1, worksheet.rowCount)?.map((row, rowNumber) => {
+      row.eachCell((cell) => {
+          if (rowNumber !== 0) {
+            const actualRowNumber = rowNumber - 1;
+
+            table![actualRowNumber] ??= [];
+            table![actualRowNumber].push(cell.value);
+          }
+        });
+    });
+
+    const fetchData = async (stockCode: string) => {
+      const res = await fetch(`http://127.0.0.1:5001/finance-backend-6edde/asia-east2/yahooFinanceBackend/${stockCode}`);
+      const result = await res.json();
+
+      return result;
+    }
+
+    if (table) {
+      const promises = table.map((val) => fetchData(val[0] as string));
+      const newTable = JSON.parse(JSON.stringify(table));
+
+      const results = await Promise.all(promises)
+
+      results.forEach((val, i) => {
+        const buyPrice = newTable[i][1];
+        const lot = newTable[i][2];
+        const eps = Number((val.price.regularMarketPrice - buyPrice).toPrecision(4));
+        const epsp = (eps / buyPrice * 100).toPrecision(4);
+        const interestRate = (val.price.regularMarketPrice * val.summaryDetail.dividendYield / buyPrice * 100).toPrecision(4);
+        const totalReturn = eps * lot;
+        const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
+
+        newTable[i]?.push(eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+      });
+
+      const row = worksheet.getRow(1);
+
+      TABLE_HEADERS.forEach((header, headerIndex) => {
+        row.getCell(headerIndex + 1).value = header;
+      });
+      row.commit();
+
+      newTable.forEach((row: Array<CellValue>, rowIndex: number) => {
+        const excelRow = worksheet.getRow(rowIndex + 2);
+
+        TABLE_HEADERS.forEach((_, headerIndex) => {
+          const val = row[headerIndex];
+          const cell = excelRow.getCell(headerIndex + 1);
+
+          cell.value = val;
+
+          if (typeof val === 'string' && val?.includes('%')) {
+            cell.value = Number(val.slice(0, -1)) / 100;
+            cell.numFmt = '0.00%';
+          }
+
+          if (typeof cell.value === 'number' && headerIndex === 7) {
+            cell.style.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: {
+                argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00',
+              },
+            }
+          }
+        });
+
+        excelRow.commit();
+      });
+
+      const newWorkBook = await wb.xlsx.writeBuffer();
+
+      saveByteArray('file.xlsx', newWorkBook);
+      setTable(newTable);
+    }
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <div>
+      <input type="file" onChange={handleFileChange}/>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      {table && (
+        <table className='w-full text-sm text-left text-gray-500 dark:text-gray-400'>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+            <tr>
+              {TABLE_HEADERS.map((val) => <th key={val} scope="col" className="px-6 py-3">{val}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {
+              table.map((row, i) => {
+                return (
+                  <tr key={`${row}_${i}`} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                    {row.map((val, i) => <td key={`${val}_${i}`} className="px-6 py-4">{val as unknown as string}</td>)}
+                  </tr>
+                )
+              })
+            }
+          </tbody>
+        </table>
+      )}
+    </div>
   )
 }
