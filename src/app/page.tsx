@@ -106,9 +106,10 @@ export default function Home() {
             if (cell.value !== 0) {
               cell.font = {
                 color: {
-                  argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00'
+                  argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00',
                 }
               }
+              cell.style.fill = undefined;
             }
           }
         });
