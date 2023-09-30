@@ -103,12 +103,12 @@ export default function Home() {
           }
 
           if (typeof cell.value === 'number' && headerIndex === 7) {
-            cell.style.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: {
-                argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00',
-              },
+            if (cell.value !== 0) {
+              cell.font = {
+                color: {
+                  argb: cell.value < 0 ? 'FFFF0000' : 'FF00FF00'
+                }
+              }
             }
           }
         });
@@ -117,7 +117,15 @@ export default function Home() {
       });
 
       const newWorkBook = await wb.xlsx.writeBuffer();
+      let fileName;
+      const userAgent = window.navigator.userAgent;
 
+      if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) {
+        fileName = 'file';
+      }
+      else {
+        fileName = 'file.xlsx';
+      }
       saveByteArray('file.xlsx', newWorkBook);
       setTable(newTable);
     }
