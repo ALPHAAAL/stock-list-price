@@ -3,7 +3,10 @@
 import ExcelJs, { CellValue } from 'exceljs';
 import { useCallback, useState } from 'react';
 
-const TABLE_HEADERS = ['股票編號', '買入價', '股數', '每股賺 ($)', '每股賺 (%)', '息率', '總回報 ($)', '總回報 (%)'];
+// const BASEPATH = 'http://127.0.0.1:5001/finance-backend-6edde/asia-east2/yahooFinanceBackend';
+const BASEPATH = 'https://yahoofinancebackend-zi4qm5lvba-df.a.run.app';
+const STOCK_TABLE_HEADERS = ['股票編號', '買入價', '股數', '每股賺 ($)', '每股賺 (%)', '息率', '總回報 ($)', '總回報 (%)'];
+const FX_TABLE_HEADERS = ['貨幣', '買入價', '數量', '現價總數', '總賺 ($)', '總賺 (%)'];
 
 function saveByteArray(name: string, byte: ArrayBuffer) {
   var blob = new Blob([byte], {type: "application/vnd.ms-excel"});
@@ -24,11 +27,12 @@ export default function Home() {
 
     await wb.xlsx.load(excelBuffer);
 
-    const worksheet = wb.getWorksheet('Sheet1');
+    const stockWorksheet = wb.getWorksheet('Stock');
+    const fxWorksheet = wb.getWorksheet('Currency');
 
     let table: Table = [];
 
-    worksheet.getRows(1, worksheet.rowCount)?.map((row, rowNumber) => {
+    stockWorksheet.getRows(1, stockWorksheet.rowCount)?.map((row, rowNumber) => {
       row.eachCell((cell) => {
           if (rowNumber !== 0) {
             const actualRowNumber = rowNumber - 1;
@@ -39,15 +43,24 @@ export default function Home() {
         });
     });
 
-    const fetchData = async (stockCode: string) => {
-      const res = await fetch(`http://127.0.0.1:5001/finance-backend-6edde/asia-east2/yahooFinanceBackend/${stockCode}`);
+    const fetchStock = async (stockCode: string) => {
+      const res = await fetch(`${BASEPATH}/stock/${stockCode}`);
       const result = await res.json();
 
       return result;
     }
 
+    const fetchFx = async () => {
+      const res = await fetch(`${BASEPATH}/fx`);
+      const result = await res.json();
+
+      return result;
+    }
+
+    await fetchFx();
+
     if (table) {
-      const promises = table.map((val) => fetchData(val[0] as string));
+      const promises = table.map((val) => fetchStock(val[0] as string));
       const newTable = JSON.parse(JSON.stringify(table));
 
       const results = await Promise.all(promises)
@@ -64,17 +77,17 @@ export default function Home() {
         newTable[i]?.push(eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
       });
 
-      const row = worksheet.getRow(1);
+      const row = stockWorksheet.getRow(1);
 
-      TABLE_HEADERS.forEach((header, headerIndex) => {
+      STOCK_TABLE_HEADERS.forEach((header, headerIndex) => {
         row.getCell(headerIndex + 1).value = header;
       });
       row.commit();
 
       newTable.forEach((row: Array<CellValue>, rowIndex: number) => {
-        const excelRow = worksheet.getRow(rowIndex + 2);
+        const excelRow = stockWorksheet.getRow(rowIndex + 2);
 
-        TABLE_HEADERS.forEach((_, headerIndex) => {
+        STOCK_TABLE_HEADERS.forEach((_, headerIndex) => {
           const val = row[headerIndex];
           const cell = excelRow.getCell(headerIndex + 1);
 
@@ -83,6 +96,10 @@ export default function Home() {
           if (typeof val === 'string' && val?.includes('%')) {
             cell.value = Number(val.slice(0, -1)) / 100;
             cell.numFmt = '0.00%';
+          }
+
+          if (typeof cell.value === 'number' && [1, 3, 6].includes(headerIndex)) {
+            cell.numFmt = '$00.0';
           }
 
           if (typeof cell.value === 'number' && headerIndex === 7) {
@@ -114,7 +131,7 @@ export default function Home() {
         <table className='w-full text-sm text-left text-gray-500 dark:text-gray-400'>
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              {TABLE_HEADERS.map((val) => <th key={val} scope="col" className="px-6 py-3">{val}</th>)}
+              {STOCK_TABLE_HEADERS.map((val) => <th key={val} scope="col" className="px-6 py-3">{val}</th>)}
             </tr>
           </thead>
           <tbody>
