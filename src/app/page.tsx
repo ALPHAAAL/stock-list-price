@@ -6,8 +6,8 @@ import { saveAs } from 'file-saver';
 
 // const BASEPATH = 'http://127.0.0.1:5001/finance-backend-6edde/asia-east2/yahooFinanceBackend';
 const BASEPATH = 'https://yahoofinancebackend-zi4qm5lvba-df.a.run.app';
-const STOCK_TABLE_HEADERS = ['股票編號', '買入價', '股數', '每股賺 ($)', '每股賺 (%)', '息率', '總回報 ($)', '總回報 (%)'];
-const FX_TABLE_HEADERS = ['貨幣', '買入價', '數量', '現價總數', '總回報 ($)', '總回報 (%)'];
+const STOCK_TABLE_HEADERS = ['股票編號', '買入價', '股數', '現價', '每股賺 ($)', '每股賺 (%)', '息率', '總回報 ($)', '總回報 (%)'];
+const FX_TABLE_HEADERS = ['貨幣', '買入價', '數量', '現價', '現價總數', '總回報 ($)', '總回報 (%)'];
 
 function saveByteArray(name: string, byte: ArrayBuffer) {
   const blob = new Blob([byte], { type: "application/vnd.ms-excel" });
@@ -89,13 +89,14 @@ export default function Home() {
             const stockSymbol = val[0] as string;
             const buyPrice = val[1] as number;
             const lot = val[2] as number;
-            const eps = Number((results[stockSymbol].regularMarketPrice - buyPrice).toPrecision(4));
+            const currentPrice = results[stockSymbol].regularMarketPrice;
+            const eps = Number((currentPrice - buyPrice).toPrecision(4));
             const epsp = (eps / buyPrice * 100).toPrecision(4);
-            const interestRate = (results[stockSymbol].regularMarketPrice * results[stockSymbol].dividendYield / buyPrice * 100).toPrecision(4);
+            const interestRate = (currentPrice * results[stockSymbol].dividendYield / buyPrice * 100).toPrecision(4);
             const totalReturn = eps * lot;
             const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
-            val.push(eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+            val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
           });
 
           const row = stockWorksheet.getRow(1);
@@ -119,7 +120,7 @@ export default function Home() {
                 cell.numFmt = '0.00%';
               }
 
-              if (typeof cell.value === 'number' && [1, 3, 6].includes(headerIndex)) {
+              if (typeof cell.value === 'number' && [1, 3, 4, 7].includes(headerIndex)) {
                 cell.numFmt = '$0.0';
               }
 
@@ -147,7 +148,7 @@ export default function Home() {
             const totalReturn = total - buyPrice * lot;
             const totalReturnPercentage = total === 0 ? 0 : (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
-            val.push(total, totalReturn, `${totalReturnPercentage}%`);
+            val.push(currentPrice, total, totalReturn, `${totalReturnPercentage}%`);
           });
 
           const fxRow = fxWorksheet.getRow(1);
@@ -171,7 +172,7 @@ export default function Home() {
                 cell.numFmt = '0.00%';
               }
 
-              if (typeof cell.value === 'number' && [1, 3, 4].includes(headerIndex)) {
+              if (typeof cell.value === 'number' && [1, 3, 5].includes(headerIndex)) {
                 cell.numFmt = '$00.0';
               }
 
@@ -255,7 +256,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className='sticky top-[100vh]'>V0.4</div>
+      <div className='sticky top-[100vh]'>V0.5</div>
     </div>
   )
 }
