@@ -42,8 +42,8 @@ export default function Home() {
         };
 
         stockWorksheet.getRows(1, stockWorksheet.rowCount)?.map((row, rowNumber) => {
-          row.eachCell((cell) => {
-            if (rowNumber !== 0) {
+          row.eachCell((cell, colIndex) => {
+            if (rowNumber !== 0 && colIndex <= 2) {
               const actualRowNumber = rowNumber - 1;
 
               table!.stock[actualRowNumber] ??= [];
@@ -53,8 +53,8 @@ export default function Home() {
         });
 
         fxWorksheet.getRows(1, fxWorksheet.rowCount)?.map((row, rowNumber) => {
-          row.eachCell((cell) => {
-            if (rowNumber !== 0) {
+          row.eachCell((cell, colIndex) => {
+            if (rowNumber !== 0 && colIndex <= 2) {
               const actualRowNumber = rowNumber - 1;
 
               table!.fx[actualRowNumber] ??= [];
@@ -256,7 +256,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className='sticky top-[100vh]'>V0.5</div>
+      <div className='sticky top-[100vh]'>V0.6</div>
     </div>
   )
 }
