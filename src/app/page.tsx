@@ -33,8 +33,8 @@ export default function Home() {
       if (excelBuffer) {
         await wb.xlsx.load(excelBuffer);
 
-        const stockWorksheet = wb.getWorksheet('Stock');
-        const fxWorksheet = wb.getWorksheet('Currency');
+        let stockWorksheet = wb.getWorksheet('Stock');
+        let fxWorksheet = wb.getWorksheet('Currency');
 
         let table: Table = {
           fx: [],
@@ -43,7 +43,7 @@ export default function Home() {
 
         stockWorksheet.getRows(1, stockWorksheet.rowCount)?.map((row, rowNumber) => {
           row.eachCell((cell, colIndex) => {
-            if (rowNumber !== 0 && colIndex <= 2) {
+            if (rowNumber !== 0 && colIndex <= 3) {
               const actualRowNumber = rowNumber - 1;
 
               table!.stock[actualRowNumber] ??= [];
@@ -54,7 +54,7 @@ export default function Home() {
 
         fxWorksheet.getRows(1, fxWorksheet.rowCount)?.map((row, rowNumber) => {
           row.eachCell((cell, colIndex) => {
-            if (rowNumber !== 0 && colIndex <= 2) {
+            if (rowNumber !== 0 && colIndex <= 3) {
               const actualRowNumber = rowNumber - 1;
 
               table!.fx[actualRowNumber] ??= [];
@@ -89,50 +89,51 @@ export default function Home() {
             const stockSymbol = val[0] as string;
             const buyPrice = val[1] as number;
             const lot = val[2] as number;
-            const currentPrice = results[stockSymbol].regularMarketPrice;
+            const currentPrice = Number(results[stockSymbol].regularMarketPrice);
             const eps = Number((currentPrice - buyPrice).toPrecision(4));
             const epsp = (eps / buyPrice * 100).toPrecision(4);
-            const interestRate = (currentPrice * results[stockSymbol].dividendYield / buyPrice * 100).toPrecision(4);
+            const interestRate = (currentPrice * (results[stockSymbol].dividendYield / 100) / buyPrice * 100).toPrecision(4);
             const totalReturn = eps * lot;
             const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
             val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
           });
 
-          const row = stockWorksheet.getRow(1);
+          wb.removeWorksheet('Stock');
+          stockWorksheet = wb.addWorksheet('Stock');
 
-          STOCK_TABLE_HEADERS.forEach((header, headerIndex) => {
-            row.getCell(headerIndex + 1).value = header;
-          });
-          row.commit();
+          stockWorksheet.addRow(STOCK_TABLE_HEADERS).commit();
 
           newTable.stock.forEach((row: Array<CellValue>, rowIndex: number) => {
-            const excelRow = stockWorksheet.getRow(rowIndex + 2);
+            const excelRow = stockWorksheet.addRow([
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              Number(parseFloat(row[5] as string) / 100),
+              Number(parseFloat(row[6] as string) / 100),
+              row[7],
+              Number(parseFloat(row[8] as string) / 100),
+            ]);
 
             STOCK_TABLE_HEADERS.forEach((_, headerIndex) => {
-              const val = row[headerIndex];
               const cell = excelRow.getCell(headerIndex + 1);
 
-              cell.value = val;
+              if ([1, 3, 4, 7].includes(headerIndex)) {
+                cell.numFmt = '$0.00';
+              }
 
-              if (typeof val === 'string' && val?.includes('%')) {
-                cell.value = Number(val.slice(0, -1)) / 100;
+              if ([5, 6, 8].includes(headerIndex)) {
                 cell.numFmt = '0.00%';
               }
 
-              if (typeof cell.value === 'number' && [1, 3, 4, 7].includes(headerIndex)) {
-                cell.numFmt = '$0.0';
-              }
-
-              if (typeof cell.value === 'number' && headerIndex === 7) {
-                if (cell.value < 0) {
-                  cell.font = {
-                    color: {
-                      argb: 'FFFF0000',
-                    }
+              if (typeof cell.value === 'number' && headerIndex === 8 && cell.value < 0) {
+                cell.font = {
+                  color: {
+                    argb: 'FFFF0000',
                   }
                 }
-                cell.style.fill = undefined;
               }
             });
 
@@ -151,32 +152,36 @@ export default function Home() {
             val.push(currentPrice, total, totalReturn, `${totalReturnPercentage}%`);
           });
 
-          const fxRow = fxWorksheet.getRow(1);
+          wb.removeWorksheet('Currency');
+          fxWorksheet = wb.addWorksheet('Currency');
 
-          FX_TABLE_HEADERS.forEach((header, headerIndex) => {
-            fxRow.getCell(headerIndex + 1).value = header;
-          });
-          fxRow.commit();
+          fxWorksheet.addRow(FX_TABLE_HEADERS).commit();
 
           newTable.fx.forEach((row: Array<CellValue>, rowIndex: number) => {
-            const excelRow = fxWorksheet.getRow(rowIndex + 2);
+            const excelRow = fxWorksheet.addRow([
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              Number(parseFloat(row[6] as string) / 100),
+            ]);
 
             FX_TABLE_HEADERS.forEach((_, headerIndex) => {
-              const val = row[headerIndex];
               const cell = excelRow.getCell(headerIndex + 1);
 
-              cell.value = val;
-
-              if (typeof val === 'string' && val?.includes('%')) {
-                cell.value = Number(val.slice(0, -1)) / 100;
-                cell.numFmt = '0.00%';
-              }
-
               if (typeof cell.value === 'number' && [1, 3, 5].includes(headerIndex)) {
-                cell.numFmt = '$00.0';
+                if (headerIndex === 3) {
+                  cell.numFmt = '$0.00000';
+                } else {
+                  cell.numFmt = '$0.0';
+                }
               }
 
-              if (typeof cell.value === 'number' && headerIndex === 5) {
+              if (typeof cell.value === 'number' && headerIndex === 6) {
+                cell.numFmt = '0.00%';
+
                 if (cell.value < 0) {
                   cell.font = {
                     color: {
@@ -185,7 +190,6 @@ export default function Home() {
                   }
                 }
               }
-              cell.style.fill = undefined;
             });
 
             excelRow.commit();
@@ -256,7 +260,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className='sticky top-[100vh]'>V0.6</div>
+      <div className='sticky top-[100vh]'>V0.7</div>
     </div>
   )
 }
