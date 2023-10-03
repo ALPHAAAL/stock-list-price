@@ -86,13 +86,9 @@ export default function Home() {
           const results = await fetchStock(stock_symbols as string);
 
           newTable.stock.forEach((val: CellValue[]) => {
-            val[0] = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
-            val[1] = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
-            val[2] = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
-
-            const stockSymbol = val[0];
-            const buyPrice = val[1];
-            const lot = val[2];
+            const stockSymbol = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+            const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+            const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
             const currentPrice = Number(results[stockSymbol].regularMarketPrice);
             const eps = Number((currentPrice - buyPrice).toPrecision(4));
             const epsp = (eps / buyPrice * 100).toPrecision(4);
@@ -132,7 +128,7 @@ export default function Home() {
                 cell.numFmt = '0.00%';
               }
 
-              if (typeof cell.value === 'number' && headerIndex === 8 && cell.value < 0) {
+              if (typeof cell.value === 'number' && [4, 5, 7, 8].includes(headerIndex) && cell.value < 0) {
                 cell.font = {
                   color: {
                     argb: 'FFFF0000',
@@ -145,13 +141,9 @@ export default function Home() {
           });
 
           newTable.fx.forEach((val: CellValue[]) => {
-            val[0] = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
-            val[1] = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
-            val[2] = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
-
-            const currency = val[0];
-            const buyPrice = val[1];
-            const lot = val[2];
+            const currency = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+            const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+            const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
             const currentPrice = fxRate[currency];
             const total = currentPrice * lot;
             const totalReturn = total - buyPrice * lot;
@@ -187,8 +179,10 @@ export default function Home() {
                 }
               }
 
-              if (typeof cell.value === 'number' && headerIndex === 6) {
-                cell.numFmt = '0.00%';
+              if (typeof cell.value === 'number' && [5, 6].includes(headerIndex)) {
+                if (headerIndex === 6) {
+                  cell.numFmt = '0.00%';
+                }
 
                 if (cell.value < 0) {
                   cell.font = {
@@ -223,7 +217,7 @@ export default function Home() {
     <div className="min-h-screen">
       <input type="file" onChange={handleFileChange} />
 
-      {table && (
+      {/* {table && (
         <div>
           <p>Stock</p>
           <table className='w-full text-sm text-left text-gray-500 dark:text-gray-400'>
@@ -266,9 +260,9 @@ export default function Home() {
             </tbody>
           </table>
         </div>
-      )}
+      )} */}
 
-      <div className='sticky top-[100vh]'>V0.7</div>
+      <div className='sticky top-[100vh]'>V0.8</div>
     </div>
   )
 }
