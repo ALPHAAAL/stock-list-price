@@ -1,6 +1,6 @@
 'use client'
 
-import ExcelJs, { CellValue } from 'exceljs';
+import ExcelJs, { CellFormulaValue, CellValue } from 'exceljs';
 import { useCallback, useState } from 'react';
 import { saveAs } from 'file-saver';
 
@@ -86,9 +86,13 @@ export default function Home() {
           const results = await fetchStock(stock_symbols as string);
 
           newTable.stock.forEach((val: CellValue[]) => {
-            const stockSymbol = val[0] as string;
-            const buyPrice = val[1] as number;
-            const lot = val[2] as number;
+            val[0] = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+            val[1] = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+            val[2] = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
+
+            const stockSymbol = val[0];
+            const buyPrice = val[1];
+            const lot = val[2];
             const currentPrice = Number(results[stockSymbol].regularMarketPrice);
             const eps = Number((currentPrice - buyPrice).toPrecision(4));
             const epsp = (eps / buyPrice * 100).toPrecision(4);
@@ -141,9 +145,13 @@ export default function Home() {
           });
 
           newTable.fx.forEach((val: CellValue[]) => {
-            const currency = val[0] as string;
-            const buyPrice = val[1] as number;
-            const lot = val[2] as number;
+            val[0] = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+            val[1] = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+            val[2] = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
+
+            const currency = val[0];
+            const buyPrice = val[1];
+            const lot = val[2];
             const currentPrice = fxRate[currency];
             const total = currentPrice * lot;
             const totalReturn = total - buyPrice * lot;
