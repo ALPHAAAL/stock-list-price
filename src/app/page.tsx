@@ -1,6 +1,6 @@
 'use client'
 
-import ExcelJs, { CellFormulaValue, CellValue } from 'exceljs';
+import ExcelJs, { CellFormulaValue, CellValue, Worksheet } from 'exceljs';
 import { useCallback, useState } from 'react';
 import { saveAs } from 'file-saver';
 
@@ -19,6 +19,22 @@ type Table = {
   fx: Array<Array<CellValue>>,
   stock: Array<Array<CellValue>>,
 } | null;
+
+function adjustColumnWidthAndAlignment(worksheet: Worksheet, fixWidthHeaderCols: number[], width: number) {
+  worksheet.columns.forEach(function (column, i) {
+    column.eachCell?.((cell) => {
+      if (i === 0) {
+        cell.alignment ??= {
+          horizontal: 'center',
+        };
+      }
+    });
+
+    if (fixWidthHeaderCols.includes(i)) {
+      column.width = width;
+    }
+  });
+}
 
 export default function Home() {
   const [table, setTable] = useState<Table>(null);
@@ -100,7 +116,9 @@ export default function Home() {
           });
 
           wb.removeWorksheet('Stock');
-          stockWorksheet = wb.addWorksheet('Stock');
+          stockWorksheet = wb.addWorksheet('Stock', {
+            views: [{ state: "frozen", ySplit: 1, xSplit: 1 }],
+          });
 
           stockWorksheet.addRow(STOCK_TABLE_HEADERS).commit();
 
@@ -139,6 +157,8 @@ export default function Home() {
 
             excelRow.commit();
           });
+
+          adjustColumnWidthAndAlignment(stockWorksheet, [5, 7, 8], 15);
 
           newTable.fx.forEach((val: CellValue[]) => {
             const currency = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
@@ -196,6 +216,8 @@ export default function Home() {
 
             excelRow.commit();
           });
+
+          adjustColumnWidthAndAlignment(fxWorksheet, [0, 1, 3, 4, 5, 6], 15);
 
           const newWorkBook = await wb.xlsx.writeBuffer();
           let fileName;
@@ -262,7 +284,7 @@ export default function Home() {
         </div>
       )} */}
 
-      <div className='sticky top-[100vh]'>V0.8</div>
+      <div className='sticky top-[100vh]'>V0.9</div>
     </div>
   )
 }
