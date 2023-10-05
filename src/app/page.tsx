@@ -38,6 +38,7 @@ function adjustColumnWidthAndAlignment(worksheet: Worksheet, fixWidthHeaderCols:
 
 export default function Home() {
   const [table, setTable] = useState<Table>(null);
+  const [error, setError] = useState<Error | null>(null);
   const handleFileChange = useCallback(async (e: React.FormEvent<HTMLInputElement>) => {
     try {
       const wb = new ExcelJs.Workbook();
@@ -235,7 +236,8 @@ export default function Home() {
         }
       }
     } catch (err) {
-      alert(err);
+      // alert(err);
+      setError(err as Error);
     }
   }, []);
 
@@ -288,7 +290,12 @@ export default function Home() {
         </div>
       )} */}
 
-      <div className='sticky top-[100vh]'>V0.10</div>
+      <pre>
+        <code>
+          {error?.stack}
+        </code>
+      </pre>
+      <div className='sticky top-[100vh]'>V0.11</div>
     </div>
   )
 }
