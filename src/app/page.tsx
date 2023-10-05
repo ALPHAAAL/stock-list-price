@@ -107,14 +107,17 @@ export default function Home() {
               const stockSymbol = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
               const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
               const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
-              const currentPrice = Number(results[stockSymbol].regularMarketPrice);
-              const eps = Number((currentPrice - buyPrice).toPrecision(4));
-              const epsp = (eps / buyPrice * 100).toPrecision(4);
-              const interestRate = (currentPrice * (results[stockSymbol].dividendYield / 100) / buyPrice * 100).toPrecision(4);
-              const totalReturn = eps * lot;
-              const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
-              val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+              if (results[stockSymbol]) {
+                const currentPrice = Number(results[stockSymbol].regularMarketPrice);
+                const eps = Number((currentPrice - buyPrice).toPrecision(4));
+                const epsp = (eps / buyPrice * 100).toPrecision(4);
+                const interestRate = (currentPrice * (results[stockSymbol].dividendYield / 100) / buyPrice * 100).toPrecision(4);
+                const totalReturn = eps * lot;
+                const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
+
+                val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+              }
             });
 
             wb.removeWorksheet('Stock');
@@ -295,7 +298,7 @@ export default function Home() {
           {error?.stack}
         </code>
       </pre>
-      <div className='sticky top-[100vh]'>V0.11</div>
+      <div className='sticky top-[100vh]'>V0.12</div>
     </div>
   )
 }
