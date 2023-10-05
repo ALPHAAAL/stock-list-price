@@ -39,199 +39,203 @@ function adjustColumnWidthAndAlignment(worksheet: Worksheet, fixWidthHeaderCols:
 export default function Home() {
   const [table, setTable] = useState<Table>(null);
   const handleFileChange = useCallback(async (e: React.FormEvent<HTMLInputElement>) => {
-    const wb = new ExcelJs.Workbook();
-    const reader = new FileReader();
+    try {
+      const wb = new ExcelJs.Workbook();
+      const reader = new FileReader();
 
-    reader.readAsArrayBuffer((e.target as HTMLInputElement).files![0]);
-    reader.onload = async (evt) => {
-      const excelBuffer = evt?.target?.result as ArrayBuffer;
+      reader.readAsArrayBuffer((e.target as HTMLInputElement).files![0]);
+      reader.onload = async (evt) => {
+        const excelBuffer = evt?.target?.result as ArrayBuffer;
 
-      if (excelBuffer) {
-        await wb.xlsx.load(excelBuffer);
+        if (excelBuffer) {
+          await wb.xlsx.load(excelBuffer);
 
-        let stockWorksheet = wb.getWorksheet('Stock');
-        let fxWorksheet = wb.getWorksheet('Currency');
+          let stockWorksheet = wb.getWorksheet('Stock');
+          let fxWorksheet = wb.getWorksheet('Currency');
 
-        let table: Table = {
-          fx: [],
-          stock: [],
-        };
+          let table: Table = {
+            fx: [],
+            stock: [],
+          };
 
-        stockWorksheet.getRows(1, stockWorksheet.rowCount)?.map((row, rowNumber) => {
-          row.eachCell((cell, colIndex) => {
-            if (rowNumber !== 0 && colIndex <= 3) {
-              const actualRowNumber = rowNumber - 1;
+          stockWorksheet.getRows(1, stockWorksheet.rowCount)?.map((row, rowNumber) => {
+            row.eachCell((cell, colIndex) => {
+              if (rowNumber !== 0 && colIndex <= 3) {
+                const actualRowNumber = rowNumber - 1;
 
-              table!.stock[actualRowNumber] ??= [];
-              table!.stock[actualRowNumber].push(cell.value);
-            }
-          });
-        });
-
-        fxWorksheet.getRows(1, fxWorksheet.rowCount)?.map((row, rowNumber) => {
-          row.eachCell((cell, colIndex) => {
-            if (rowNumber !== 0 && colIndex <= 3) {
-              const actualRowNumber = rowNumber - 1;
-
-              table!.fx[actualRowNumber] ??= [];
-              table!.fx[actualRowNumber].push(cell.value);
-            }
-          });
-        });
-
-        const fetchStock = async (stockCode: string) => {
-          const res = await fetch(`${BASEPATH}/stock/${stockCode}`);
-          const result = await res.json();
-
-          return result;
-        }
-
-        const fetchFx = async () => {
-          const res = await fetch(`${BASEPATH}/fx`);
-          const result = await res.json();
-
-          return result;
-        }
-
-        const fxRate = await fetchFx();
-
-        if (table) {
-          const stock_symbols = table.stock.map((row) => row[0]).join(',');
-          const newTable = JSON.parse(JSON.stringify(table));
-
-          const results = await fetchStock(stock_symbols as string);
-
-          newTable.stock.forEach((val: CellValue[]) => {
-            const stockSymbol = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
-            const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
-            const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
-            const currentPrice = Number(results[stockSymbol].regularMarketPrice);
-            const eps = Number((currentPrice - buyPrice).toPrecision(4));
-            const epsp = (eps / buyPrice * 100).toPrecision(4);
-            const interestRate = (currentPrice * (results[stockSymbol].dividendYield / 100) / buyPrice * 100).toPrecision(4);
-            const totalReturn = eps * lot;
-            const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
-
-            val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
-          });
-
-          wb.removeWorksheet('Stock');
-          stockWorksheet = wb.addWorksheet('Stock', {
-            views: [{ state: "frozen", ySplit: 1, xSplit: 1 }],
-          });
-
-          stockWorksheet.addRow(STOCK_TABLE_HEADERS).commit();
-
-          newTable.stock.forEach((row: Array<CellValue>, rowIndex: number) => {
-            const excelRow = stockWorksheet.addRow([
-              row[0],
-              row[1],
-              row[2],
-              row[3],
-              row[4],
-              Number(parseFloat(row[5] as string) / 100),
-              Number(parseFloat(row[6] as string) / 100),
-              row[7],
-              Number(parseFloat(row[8] as string) / 100),
-            ]);
-
-            STOCK_TABLE_HEADERS.forEach((_, headerIndex) => {
-              const cell = excelRow.getCell(headerIndex + 1);
-
-              if ([1, 3, 4, 7].includes(headerIndex)) {
-                cell.numFmt = '$0.00';
-              }
-
-              if ([5, 6, 8].includes(headerIndex)) {
-                cell.numFmt = '0.00%';
-              }
-
-              if (typeof cell.value === 'number' && [4, 5, 7, 8].includes(headerIndex) && cell.value < 0) {
-                cell.font = {
-                  color: {
-                    argb: 'FFFF0000',
-                  }
-                }
+                table!.stock[actualRowNumber] ??= [];
+                table!.stock[actualRowNumber].push(cell.value);
               }
             });
-
-            excelRow.commit();
           });
 
-          adjustColumnWidthAndAlignment(stockWorksheet, [5, 7, 8], 15);
+          fxWorksheet.getRows(1, fxWorksheet.rowCount)?.map((row, rowNumber) => {
+            row.eachCell((cell, colIndex) => {
+              if (rowNumber !== 0 && colIndex <= 3) {
+                const actualRowNumber = rowNumber - 1;
 
-          newTable.fx.forEach((val: CellValue[]) => {
-            const currency = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
-            const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
-            const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
-            const currentPrice = fxRate[currency];
-            const total = currentPrice * lot;
-            const totalReturn = total - buyPrice * lot;
-            const totalReturnPercentage = total === 0 ? 0 : (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
-
-            val.push(currentPrice, total, totalReturn, `${totalReturnPercentage}%`);
-          });
-
-          wb.removeWorksheet('Currency');
-          fxWorksheet = wb.addWorksheet('Currency');
-
-          fxWorksheet.addRow(FX_TABLE_HEADERS).commit();
-
-          newTable.fx.forEach((row: Array<CellValue>, rowIndex: number) => {
-            const excelRow = fxWorksheet.addRow([
-              row[0],
-              row[1],
-              row[2],
-              row[3],
-              row[4],
-              row[5],
-              Number(parseFloat(row[6] as string) / 100),
-            ]);
-
-            FX_TABLE_HEADERS.forEach((_, headerIndex) => {
-              const cell = excelRow.getCell(headerIndex + 1);
-
-              if (typeof cell.value === 'number' && [1, 3, 5].includes(headerIndex)) {
-                if (headerIndex === 3) {
-                  cell.numFmt = '$0.00000';
-                } else {
-                  cell.numFmt = '$0.0';
-                }
+                table!.fx[actualRowNumber] ??= [];
+                table!.fx[actualRowNumber].push(cell.value);
               }
+            });
+          });
 
-              if (typeof cell.value === 'number' && [5, 6].includes(headerIndex)) {
-                if (headerIndex === 6) {
+          const fetchStock = async (stockCode: string) => {
+            const res = await fetch(`${BASEPATH}/stock/${stockCode}`);
+            const result = await res.json();
+
+            return result;
+          }
+
+          const fetchFx = async () => {
+            const res = await fetch(`${BASEPATH}/fx`);
+            const result = await res.json();
+
+            return result;
+          }
+
+          const fxRate = await fetchFx();
+
+          if (table) {
+            const stock_symbols = table.stock.map((row) => row[0]).join(',');
+            const newTable = JSON.parse(JSON.stringify(table));
+
+            const results = await fetchStock(stock_symbols as string);
+
+            newTable.stock.forEach((val: CellValue[]) => {
+              const stockSymbol = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+              const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+              const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
+              const currentPrice = Number(results[stockSymbol].regularMarketPrice);
+              const eps = Number((currentPrice - buyPrice).toPrecision(4));
+              const epsp = (eps / buyPrice * 100).toPrecision(4);
+              const interestRate = (currentPrice * (results[stockSymbol].dividendYield / 100) / buyPrice * 100).toPrecision(4);
+              const totalReturn = eps * lot;
+              const totalReturnPercentage = (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
+
+              val.push(currentPrice, eps, `${epsp}%`, `${interestRate}%`, totalReturn, `${totalReturnPercentage}%`);
+            });
+
+            wb.removeWorksheet('Stock');
+            stockWorksheet = wb.addWorksheet('Stock', {
+              views: [{ state: "frozen", ySplit: 1, xSplit: 1 }],
+            });
+
+            stockWorksheet.addRow(STOCK_TABLE_HEADERS).commit();
+
+            newTable.stock.forEach((row: Array<CellValue>, rowIndex: number) => {
+              const excelRow = stockWorksheet.addRow([
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                Number(parseFloat(row[5] as string) / 100),
+                Number(parseFloat(row[6] as string) / 100),
+                row[7],
+                Number(parseFloat(row[8] as string) / 100),
+              ]);
+
+              STOCK_TABLE_HEADERS.forEach((_, headerIndex) => {
+                const cell = excelRow.getCell(headerIndex + 1);
+
+                if ([1, 3, 4, 7].includes(headerIndex)) {
+                  cell.numFmt = '$0.00';
+                }
+
+                if ([5, 6, 8].includes(headerIndex)) {
                   cell.numFmt = '0.00%';
                 }
 
-                if (cell.value < 0) {
+                if (typeof cell.value === 'number' && [4, 5, 7, 8].includes(headerIndex) && cell.value < 0) {
                   cell.font = {
                     color: {
                       argb: 'FFFF0000',
                     }
                   }
                 }
-              }
+              });
+
+              excelRow.commit();
             });
 
-            excelRow.commit();
-          });
+            adjustColumnWidthAndAlignment(stockWorksheet, [5, 7, 8], 15);
 
-          adjustColumnWidthAndAlignment(fxWorksheet, [0, 1, 3, 4, 5, 6], 15);
+            newTable.fx.forEach((val: CellValue[]) => {
+              const currency = (typeof val[0] === 'object' ? (val[0] as unknown as CellFormulaValue).result : val[0]) as string;
+              const buyPrice = (typeof val[1] === 'object' ? (val[1] as unknown as CellFormulaValue).result : val[1]) as number;
+              const lot = (typeof val[2] === 'object' ? (val[2] as unknown as CellFormulaValue).result : val[2]) as number;
+              const currentPrice = fxRate[currency];
+              const total = currentPrice * lot;
+              const totalReturn = total - buyPrice * lot;
+              const totalReturnPercentage = total === 0 ? 0 : (totalReturn / (buyPrice * lot) * 100).toPrecision(4);
 
-          const newWorkBook = await wb.xlsx.writeBuffer();
-          let fileName;
-          const userAgent = window.navigator.userAgent;
+              val.push(currentPrice, total, totalReturn, `${totalReturnPercentage}%`);
+            });
 
-          if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) {
-            fileName = 'file';
-          } else {
-            fileName = 'file.xlsx';
+            wb.removeWorksheet('Currency');
+            fxWorksheet = wb.addWorksheet('Currency');
+
+            fxWorksheet.addRow(FX_TABLE_HEADERS).commit();
+
+            newTable.fx.forEach((row: Array<CellValue>, rowIndex: number) => {
+              const excelRow = fxWorksheet.addRow([
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                row[5],
+                Number(parseFloat(row[6] as string) / 100),
+              ]);
+
+              FX_TABLE_HEADERS.forEach((_, headerIndex) => {
+                const cell = excelRow.getCell(headerIndex + 1);
+
+                if (typeof cell.value === 'number' && [1, 3, 5].includes(headerIndex)) {
+                  if (headerIndex === 3) {
+                    cell.numFmt = '$0.00000';
+                  } else {
+                    cell.numFmt = '$0.0';
+                  }
+                }
+
+                if (typeof cell.value === 'number' && [5, 6].includes(headerIndex)) {
+                  if (headerIndex === 6) {
+                    cell.numFmt = '0.00%';
+                  }
+
+                  if (cell.value < 0) {
+                    cell.font = {
+                      color: {
+                        argb: 'FFFF0000',
+                      }
+                    }
+                  }
+                }
+              });
+
+              excelRow.commit();
+            });
+
+            adjustColumnWidthAndAlignment(fxWorksheet, [0, 1, 3, 4, 5, 6], 15);
+
+            const newWorkBook = await wb.xlsx.writeBuffer();
+            let fileName;
+            const userAgent = window.navigator.userAgent;
+
+            if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) {
+              fileName = 'file';
+            } else {
+              fileName = 'file.xlsx';
+            }
+            saveByteArray(fileName, newWorkBook);
+            setTable(newTable);
           }
-          saveByteArray(fileName, newWorkBook);
-          setTable(newTable);
         }
       }
+    } catch (err) {
+      alert(err);
     }
   }, []);
 
@@ -284,7 +288,7 @@ export default function Home() {
         </div>
       )} */}
 
-      <div className='sticky top-[100vh]'>V0.9</div>
+      <div className='sticky top-[100vh]'>V0.10</div>
     </div>
   )
 }
